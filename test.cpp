@@ -34,6 +34,9 @@
 #include <locale>
 #include <time.h>
 
+//naim's code
+#include <cstdio>
+
 #ifdef CRYPTOPP_WIN32_AVAILABLE
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -81,8 +84,6 @@ void PrintSeedAndThreads(const std::string& seed);
 void GenerateRSAKey(unsigned int keyLength, const char *privFilename, const char *pubFilename, const char *seed);
 string RSAEncryptString(const char *pubFilename, const char *seed, const char *message);
 string RSADecryptString(const char *privFilename, const char *ciphertext);
-void RSASignFile(const char *privFilename, const char *messageFilename, const char *signatureFilename);
-bool RSAVerifyFile(const char *pubFilename, const char *messageFilename, const char *signatureFilename);
 
 void DigestFile(const char *file);
 void HmacFile(const char *hexKey, const char *file);
@@ -92,24 +93,10 @@ void AES_CTR_Encrypt(const char *hexKey, const char *hexIV, const char *infile, 
 string EncryptString(const char *plaintext, const char *passPhrase);
 string DecryptString(const char *ciphertext, const char *passPhrase);
 
-void EncryptFile(const char *in, const char *out, const char *passPhrase);
-void DecryptFile(const char *in, const char *out, const char *passPhrase);
-
-void SecretShareFile(int threshold, int nShares, const char *filename, const char *seed);
-void SecretRecoverFile(int threshold, const char *outFilename, char *const *inFilenames);
-
-void InformationDisperseFile(int threshold, int nShares, const char *filename);
-void InformationRecoverFile(int threshold, const char *outFilename, char *const *inFilenames);
-
-void GzipFile(const char *in, const char *out, int deflate_level);
-void GunzipFile(const char *in, const char *out);
-
 void Base64Encode(const char *infile, const char *outfile);
 void Base64Decode(const char *infile, const char *outfile);
 void HexEncode(const char *infile, const char *outfile);
 void HexDecode(const char *infile, const char *outfile);
-
-void ForwardTcpPort(const char *sourcePort, const char *destinationHost, const char *destinationPort);
 
 void FIPS140_SampleApplication();
 void FIPS140_GenerateRandomFiles();
@@ -131,7 +118,7 @@ static const SignalHandler<SIGTRAP, false> s_dummyHandler;
 // static const DebugTrapHandler s_dummyHandler;
 #endif
 
-int CRYPTOPP_API main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	try
 	{
@@ -170,13 +157,6 @@ int CRYPTOPP_API main(int argc, char *argv[])
 			cin.getline(thisSeed, 1024);
 
 			GenerateRSAKey(keyLength, privFilename, pubFilename, thisSeed);
-		}
-		else if (command == "rs")
-			RSASignFile(argv[2], argv[3], argv[4]);
-		else if (command == "rv")
-		{
-			bool verified = RSAVerifyFile(argv[2], argv[3], argv[4]);
-			cout << (verified ? "valid signature" : "invalid signature") << endl;
 		}
 		else if (command == "r")
 		{
@@ -317,82 +297,13 @@ int CRYPTOPP_API main(int argc, char *argv[])
 
 			return 0;
 		}
-		else if (command == "e64")
-			Base64Encode(argv[2], argv[3]);
-		else if (command == "d64")
-			Base64Decode(argv[2], argv[3]);
-		else if (command == "e16")
-			HexEncode(argv[2], argv[3]);
-		else if (command == "d16")
-			HexDecode(argv[2], argv[3]);
-		else if (command == "e" || command == "d")
-		{
-			char passPhrase[MAX_PHRASE_LENGTH];
-			cout << "Passphrase: ";
-			cin.getline(passPhrase, MAX_PHRASE_LENGTH);
-			if (command == "e")
-				EncryptFile(argv[2], argv[3], passPhrase);
-			else
-				DecryptFile(argv[2], argv[3], passPhrase);
-		}
-		else if (command == "ss")
-		{
-			char thisSeed[1024];
-			cout << "\nRandom Seed: ";
-			ws(cin);
-			cin.getline(thisSeed, 1024);
-			SecretShareFile(StringToValue<int, true>(argv[2]), StringToValue<int, true>(argv[3]), argv[4], thisSeed);
-		}
-		else if (command == "sr")
-			SecretRecoverFile(argc - 3, argv[2], argv + 3);
-		else if (command == "id")
-			InformationDisperseFile(StringToValue<int, true>(argv[2]), StringToValue<int, true>(argv[3]), argv[4]);
-		else if (command == "ir")
-			InformationRecoverFile(argc - 3, argv[2], argv + 3);
-		else if (command == "v" || command == "vv")
-			return !Validate(argc > 2 ? StringToValue<int, true>(argv[2]) : 0, argv[1][1] == 'v', argc > 3 ? argv[3] : NULL);
-		else if (command == "b")
-			BenchmarkAll(argc < 3 ? 1 : StringToValue<float, true>(argv[2]), argc < 4 ? 0.0f : StringToValue<float, true>(argv[3])*1e9);
-		else if (command == "b2")
-			BenchmarkAll2(argc < 3 ? 1 : StringToValue<float, true>(argv[2]), argc < 4 ? 0.0f : StringToValue<float, true>(argv[3])*1e9);
-		else if (command == "z")
-			GzipFile(argv[3], argv[4], argv[2][0] - '0');
-		else if (command == "u")
-			GunzipFile(argv[2], argv[3]);
-		else if (command == "fips")
-			FIPS140_SampleApplication();
-		else if (command == "fips-rand")
-			FIPS140_GenerateRandomFiles();
-		else if (command == "ft")
-			ForwardTcpPort(argv[2], argv[3], argv[4]);
-		else if (command == "a")
-		{
-			if (AdhocTest)
-				return (*AdhocTest)(argc, argv);
-			else
-			{
-				cerr << "AdhocTest not defined.\n";
-				return 1;
-			}
-		}
-		else if (command == "hmac")
-			HmacFile(argv[2], argv[3]);
-		else if (command == "ae")
-			AES_CTR_Encrypt(argv[2], argv[3], argv[4], argv[5]);
-		else if (command == "h")
-		{
-			FileSource usage(CRYPTOPP_DATA_DIR "TestData/usage.dat", true, new FileSink(cout));
-			return 1;
-		}
-		else if (command == "V")
-		{
-			cout << CRYPTOPP_VERSION / 100 << '.' << (CRYPTOPP_VERSION % 100) / 10 << '.' << CRYPTOPP_VERSION % 10 << endl;
-		}
-		else
-		{
-			cerr << "Unrecognized command. Run \"cryptest h\" to obtain usage information.\n";
-			return 1;
-		}
+
+		Base64Encode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt", "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt");
+		Base64Decode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt", "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt");
+		HexEncode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt","C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt");
+		HexDecode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt","C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt");
+
+		std::getchar();
 		return 0;
 	}
 	catch (const CryptoPP::Exception &e)
@@ -468,7 +379,7 @@ void PrintSeedAndThreads(const std::string& seed)
 
 	std::cout << "Using " << tc << " OMP " << (tc == 1 ? "thread" : "threads") << std::endl;
 #endif
-}
+	}
 
 SecByteBlock HexDecodeString(const char *hex)
 {
@@ -515,31 +426,6 @@ string RSADecryptString(const char *privFilename, const char *ciphertext)
 	string result;
 	StringSource(ciphertext, true, new HexDecoder(new PK_DecryptorFilter(GlobalRNG(), priv, new StringSink(result))));
 	return result;
-}
-
-void RSASignFile(const char *privFilename, const char *messageFilename, const char *signatureFilename)
-{
-	FileSource privFile(privFilename, true, new HexDecoder);
-	RSASS<PKCS1v15, SHA>::Signer priv(privFile);
-	FileSource f(messageFilename, true, new SignerFilter(GlobalRNG(), priv, new HexEncoder(new FileSink(signatureFilename))));
-}
-
-bool RSAVerifyFile(const char *pubFilename, const char *messageFilename, const char *signatureFilename)
-{
-	FileSource pubFile(pubFilename, true, new HexDecoder);
-	RSASS<PKCS1v15, SHA>::Verifier pub(pubFile);
-
-	FileSource signatureFile(signatureFilename, true, new HexDecoder);
-	if (signatureFile.MaxRetrievable() != pub.SignatureLength())
-		return false;
-	SecByteBlock signature(pub.SignatureLength());
-	signatureFile.Get(signature, signature.size());
-
-	VerifierFilter *verifierFilter = new VerifierFilter(pub);
-	verifierFilter->Put(signature, pub.SignatureLength());
-	FileSource f(messageFilename, true, verifierFilter);
-
-	return verifierFilter->GetLastResult();
 }
 
 void DigestFile(const char *filename)
@@ -620,164 +506,6 @@ string DecryptString(const char *instr, const char *passPhrase)
 	return outstr;
 }
 
-void EncryptFile(const char *in, const char *out, const char *passPhrase)
-{
-	FileSource f(in, true, new DefaultEncryptorWithMAC(passPhrase, new FileSink(out)));
-}
-
-void DecryptFile(const char *in, const char *out, const char *passPhrase)
-{
-	FileSource f(in, true, new DefaultDecryptorWithMAC(passPhrase, new FileSink(out)));
-}
-
-void SecretShareFile(int threshold, int nShares, const char *filename, const char *seed)
-{
-	CRYPTOPP_ASSERT(nShares >= 1 && nShares <= 1000);
-	if (nShares < 1 || nShares > 1000)
-		throw InvalidArgument("SecretShareFile: " + IntToString(nShares) + " is not in range [1, 1000]");
-
-	RandomPool rng;
-	rng.IncorporateEntropy((byte *)seed, strlen(seed));
-
-	ChannelSwitch *channelSwitch = NULL;
-	FileSource source(filename, false, new SecretSharing(rng, threshold, nShares, channelSwitch = new ChannelSwitch));
-
-	vector_member_ptrs<FileSink> fileSinks(nShares);
-	string channel;
-	for (int i = 0; i < nShares; i++)
-	{
-		char extension[5] = ".000";
-		extension[1] = '0' + byte(i / 100);
-		extension[2] = '0' + byte((i / 10) % 10);
-		extension[3] = '0' + byte(i % 10);
-		fileSinks[i].reset(new FileSink((string(filename) + extension).c_str()));
-
-		channel = WordToString<word32>(i);
-		fileSinks[i]->Put((const byte *)channel.data(), 4);
-		channelSwitch->AddRoute(channel, *fileSinks[i], DEFAULT_CHANNEL);
-	}
-
-	source.PumpAll();
-}
-
-void SecretRecoverFile(int threshold, const char *outFilename, char *const *inFilenames)
-{
-	CRYPTOPP_ASSERT(threshold >= 1 && threshold <= 1000);
-	if (threshold < 1 || threshold > 1000)
-		throw InvalidArgument("SecretRecoverFile: " + IntToString(threshold) + " is not in range [1, 1000]");
-
-	SecretRecovery recovery(threshold, new FileSink(outFilename));
-
-	vector_member_ptrs<FileSource> fileSources(threshold);
-	SecByteBlock channel(4);
-	int i;
-	for (i = 0; i < threshold; i++)
-	{
-		fileSources[i].reset(new FileSource(inFilenames[i], false));
-		fileSources[i]->Pump(4);
-		fileSources[i]->Get(channel, 4);
-		fileSources[i]->Attach(new ChannelSwitch(recovery, string((char *)channel.begin(), 4)));
-	}
-
-	while (fileSources[0]->Pump(256))
-		for (i = 1; i < threshold; i++)
-			fileSources[i]->Pump(256);
-
-	for (i = 0; i < threshold; i++)
-		fileSources[i]->PumpAll();
-}
-
-void InformationDisperseFile(int threshold, int nShares, const char *filename)
-{
-	CRYPTOPP_ASSERT(threshold >= 1 && threshold <= 1000);
-	if (threshold < 1 || threshold > 1000)
-		throw InvalidArgument("InformationDisperseFile: " + IntToString(nShares) + " is not in range [1, 1000]");
-
-	ChannelSwitch *channelSwitch = NULL;
-	FileSource source(filename, false, new InformationDispersal(threshold, nShares, channelSwitch = new ChannelSwitch));
-
-	vector_member_ptrs<FileSink> fileSinks(nShares);
-	string channel;
-	for (int i = 0; i < nShares; i++)
-	{
-		char extension[5] = ".000";
-		extension[1] = '0' + byte(i / 100);
-		extension[2] = '0' + byte((i / 10) % 10);
-		extension[3] = '0' + byte(i % 10);
-		fileSinks[i].reset(new FileSink((string(filename) + extension).c_str()));
-
-		channel = WordToString<word32>(i);
-		fileSinks[i]->Put((const byte *)channel.data(), 4);
-		channelSwitch->AddRoute(channel, *fileSinks[i], DEFAULT_CHANNEL);
-	}
-
-	source.PumpAll();
-}
-
-void InformationRecoverFile(int threshold, const char *outFilename, char *const *inFilenames)
-{
-	CRYPTOPP_ASSERT(threshold <= 1000);
-	if (threshold < 1 || threshold > 1000)
-		throw InvalidArgument("InformationRecoverFile: " + IntToString(threshold) + " is not in range [1, 1000]");
-
-	InformationRecovery recovery(threshold, new FileSink(outFilename));
-
-	vector_member_ptrs<FileSource> fileSources(threshold);
-	SecByteBlock channel(4);
-	int i;
-	for (i = 0; i < threshold; i++)
-	{
-		fileSources[i].reset(new FileSource(inFilenames[i], false));
-		fileSources[i]->Pump(4);
-		fileSources[i]->Get(channel, 4);
-		fileSources[i]->Attach(new ChannelSwitch(recovery, string((char *)channel.begin(), 4)));
-	}
-
-	while (fileSources[0]->Pump(256))
-		for (i = 1; i < threshold; i++)
-			fileSources[i]->Pump(256);
-
-	for (i = 0; i < threshold; i++)
-		fileSources[i]->PumpAll();
-}
-
-void GzipFile(const char *in, const char *out, int deflate_level)
-{
-	//	FileSource(in, true, new Gzip(new FileSink(out), deflate_level));
-
-		// use a filter graph to compare decompressed data with original
-		//
-		// Source ----> Gzip ------> Sink
-		//    \           |
-		//	    \       Gunzip
-		//		  \       |
-		//		    \     v
-		//		      > ComparisonFilter
-
-	EqualityComparisonFilter comparison;
-
-	Gunzip gunzip(new ChannelSwitch(comparison, "0"));
-	gunzip.SetAutoSignalPropagation(0);
-
-	FileSink sink(out);
-
-	ChannelSwitch *cs;
-	Gzip gzip(cs = new ChannelSwitch(sink), deflate_level);
-	cs->AddDefaultRoute(gunzip);
-
-	cs = new ChannelSwitch(gzip);
-	cs->AddDefaultRoute(comparison, "1");
-	FileSource source(in, true, cs);
-
-	comparison.ChannelMessageSeriesEnd("0");
-	comparison.ChannelMessageSeriesEnd("1");
-}
-
-void GunzipFile(const char *in, const char *out)
-{
-	FileSource(in, true, new Gunzip(new FileSink(out)));
-}
-
 void Base64Encode(const char *in, const char *out)
 {
 	FileSource(in, true, new Base64Encoder(new FileSink(out)));
@@ -796,77 +524,6 @@ void HexEncode(const char *in, const char *out)
 void HexDecode(const char *in, const char *out)
 {
 	FileSource(in, true, new HexDecoder(new FileSink(out)));
-}
-
-void ForwardTcpPort(const char *sourcePortName, const char *destinationHost, const char *destinationPortName)
-{
-	// Quiet warnings for Windows Phone and Windows Store builds
-	CRYPTOPP_UNUSED(sourcePortName), CRYPTOPP_UNUSED(destinationHost), CRYPTOPP_UNUSED(destinationPortName);
-
-#ifdef SOCKETS_AVAILABLE
-	SocketsInitializer sockInit;
-
-	Socket sockListen, sockSource, sockDestination;
-
-	int sourcePort = Socket::PortNameToNumber(sourcePortName);
-	int destinationPort = Socket::PortNameToNumber(destinationPortName);
-
-	sockListen.Create();
-	sockListen.Bind(sourcePort);
-
-	const int flag = 1;
-	int err = setsockopt(sockListen, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(int));
-	CRYPTOPP_ASSERT(err == 0);
-	if (err != 0)
-		throw Socket::Err(sockListen, "setsockopt", sockListen.GetLastError());
-
-	cout << "Listing on port " << sourcePort << ".\n";
-	sockListen.Listen();
-
-	sockListen.Accept(sockSource);
-	cout << "Connection accepted on port " << sourcePort << ".\n";
-	sockListen.CloseSocket();
-
-	cout << "Making connection to " << destinationHost << ", port " << destinationPort << ".\n";
-	sockDestination.Create();
-	sockDestination.Connect(destinationHost, destinationPort);
-
-	cout << "Connection made to " << destinationHost << ", starting to forward.\n";
-
-	SocketSource out(sockSource, false, new SocketSink(sockDestination));
-	SocketSource in(sockDestination, false, new SocketSink(sockSource));
-
-	WaitObjectContainer waitObjects;
-
-	while (!(in.SourceExhausted() && out.SourceExhausted()))
-	{
-		waitObjects.Clear();
-
-		out.GetWaitObjects(waitObjects, CallStack("ForwardTcpPort - out", NULL));
-		in.GetWaitObjects(waitObjects, CallStack("ForwardTcpPort - in", NULL));
-
-		waitObjects.Wait(INFINITE_TIME);
-
-		if (!out.SourceExhausted())
-		{
-			cout << "o" << flush;
-			out.PumpAll2(false);
-			if (out.SourceExhausted())
-				cout << "EOF received on source socket.\n";
-		}
-
-		if (!in.SourceExhausted())
-		{
-			cout << "i" << flush;
-			in.PumpAll2(false);
-			if (in.SourceExhausted())
-				cout << "EOF received on destination socket.\n";
-		}
-	}
-#else
-	cout << "Socket support was not enabled at compile time.\n";
-	exit(-1);
-#endif
 }
 
 bool Validate(int alg, bool thorough, const char *seedInput)
