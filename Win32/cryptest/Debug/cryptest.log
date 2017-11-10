@@ -1,0 +1,4 @@
+﻿  test.cpp
+c:\users\nagabe\downloads\cryptopp565\wait.h(159): warning C4589: Constructor of abstract class 'CryptoPP::WaitObjectsTracer' ignores initializer for virtual base class 'CryptoPP::Tracer'
+  c:\users\nagabe\downloads\cryptopp565\wait.h(159): note: virtual base classes are only initialized by the most-derived type
+  cryptest.vcxproj -> C:\Users\nagabe\Downloads\cryptopp565\Win32\Output\Debug\cryptest.exe
