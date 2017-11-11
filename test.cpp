@@ -38,14 +38,17 @@
 #include <cstdio>
 
 
-char *plainTextFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt";
-char *cipherTextFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt";
-char *publicKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\publicKey.txt";
-char *privateKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\privateKey.txt";
-char *message = "message";
-char *charSeed = "seed";
-std::string stringSeed = "seed";
-int keySize = 1024;
+char *_plainTextFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt";
+char *_cipherTextFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt";
+char *_publicKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\publicKey.txt";
+char *_privateKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\privateKey.txt";
+char *_message = "message";
+char *_passPhrase = "password";
+char *_charSeed = "seed";
+
+std::string _stringSeed = "seed";
+
+int _keySize = 1024;
 
 
 
@@ -115,8 +118,6 @@ void FIPS140_GenerateRandomFiles();
 
 void EncryptDecryptMAC();
 
-void GeneratePrivatePublicRsaKeys();
-
 void EncryptDecryptWithRsa();
 
 bool Validate(int, bool, const char *);
@@ -149,17 +150,17 @@ int main(int argc, char *argv[])
 		OFB_Mode<AES>::Encryption& prng = dynamic_cast<OFB_Mode<AES>::Encryption&>(GlobalRNG());
 		prng.SetKeyWithIV((byte *)seed.data(), 16, (byte *)seed.data());
 
-		GenerateRSAKey(keySize, privateKeyFilePath, publicKeyFilePath, charSeed);
+		GenerateRSAKey(_keySize, _privateKeyFilePath, _publicKeyFilePath, _charSeed);
 		EncryptDecryptWithRsa();
 
 		DigestFile(argv[2]);
 		EncryptDecryptMAC();
 
-		Base64Encode(plainTextFilePath, cipherTextFilePath);
-		Base64Decode(cipherTextFilePath, plainTextFilePath);
+		Base64Encode(_plainTextFilePath, _cipherTextFilePath);
+		Base64Decode(_cipherTextFilePath, _plainTextFilePath);
 
-		HexEncode(plainTextFilePath, cipherTextFilePath);
-		HexDecode(cipherTextFilePath, plainTextFilePath);
+		HexEncode(_plainTextFilePath, _cipherTextFilePath);
+		HexDecode(_cipherTextFilePath, _plainTextFilePath);
 
 		std::getchar();
 		return 0;
@@ -178,44 +179,22 @@ int main(int argc, char *argv[])
 
 void EncryptDecryptWithRsa()
 {
-	char privFilename[128], pubFilename[128];
-	char thisSeed[1024], message[1024];
-
-	cout << "Private key file: ";
-	cin >> privFilename;
-
-	cout << "\nPublic key file: ";
-	cin >> pubFilename;
-
-	cout << "\nRandom Seed: ";
-	ws(cin);
-	cin.getline(thisSeed, 1024);
-
-	cout << "\nMessage: ";
-	cin.getline(message, 1024);
-
-	string ciphertext = RSAEncryptString(pubFilename, thisSeed, message);
+	cout << "\Plaintext: " << _message << endl;
+	string ciphertext = RSAEncryptString(_publicKeyFilePath, _charSeed, _message);
 	cout << "\nCiphertext: " << ciphertext << endl;
 
-	string decrypted = RSADecryptString(privFilename, ciphertext.c_str());
+	string decrypted = RSADecryptString(_privateKeyFilePath, ciphertext.c_str());
 	cout << "\nDecrypted: " << decrypted << endl;
 }
 
 void EncryptDecryptMAC()
 {
-	// VC60 workaround: use char array instead of std::string to workaround MSVC's getline bug
-	char passPhrase[MAX_PHRASE_LENGTH], plaintext[1024];
 
-	cout << "Passphrase: ";
-	cin.getline(passPhrase, MAX_PHRASE_LENGTH);
-
-	cout << "\nPlaintext: ";
-	cin.getline(plaintext, 1024);
-
-	string ciphertext = EncryptString(plaintext, passPhrase);
+	string ciphertext = EncryptString(_message, _passPhrase);
 	cout << "\nCiphertext: " << ciphertext << endl;
+	cout << "\Passphrase: " << _passPhrase << endl;
 
-	string decrypted = DecryptString(ciphertext.c_str(), passPhrase);
+	string decrypted = DecryptString(ciphertext.c_str(), _passPhrase);
 	cout << "\nDecrypted: " << decrypted << endl;
 }
 
