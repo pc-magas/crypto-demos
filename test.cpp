@@ -43,7 +43,9 @@ char *cipherTextFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt";
 char *publicKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\publicKey.txt";
 char *privateKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\privateKey.txt";
 char *message = "message";
-char *seed = "seed";
+char *charSeed = "seed";
+std::string stringSeed = "seed";
+int keySize = 1024;
 
 
 
@@ -113,6 +115,10 @@ void FIPS140_GenerateRandomFiles();
 
 void EncryptDecryptMAC();
 
+void GeneratePrivatePublicRsaKeys();
+
+void EncryptDecryptWithRsa();
+
 bool Validate(int, bool, const char *);
 void PrintSeedAndThreads(const std::string& seed);
 
@@ -143,68 +149,15 @@ int main(int argc, char *argv[])
 		OFB_Mode<AES>::Encryption& prng = dynamic_cast<OFB_Mode<AES>::Encryption&>(GlobalRNG());
 		prng.SetKeyWithIV((byte *)seed.data(), 16, (byte *)seed.data());
 
-		std::string command, executableName, macFilename;
+		GenerateRSAKey(keySize, privateKeyFilePath, publicKeyFilePath, charSeed);
+		EncryptDecryptWithRsa();
 
-		if (argc < 2)
-			command = 'h';
-		else
-			command = argv[1];
-
-		if (command == "g")
-		{
-			char thisSeed[1024], privFilename[128], pubFilename[128];
-			unsigned int keyLength;
-
-			cout << "Key length in bits: ";
-			cin >> keyLength;
-
-			cout << "\nSave private key to file: ";
-			cin >> privFilename;
-
-			cout << "\nSave public key to file: ";
-			cin >> pubFilename;
-
-			cout << "\nRandom Seed: ";
-			ws(cin);
-			cin.getline(thisSeed, 1024);
-
-			GenerateRSAKey(keyLength, privFilename, pubFilename, thisSeed);
-		}
-		else if (command == "r")
-		{
-			char privFilename[128], pubFilename[128];
-			char thisSeed[1024], message[1024];
-
-			cout << "Private key file: ";
-			cin >> privFilename;
-
-			cout << "\nPublic key file: ";
-			cin >> pubFilename;
-
-			cout << "\nRandom Seed: ";
-			ws(cin);
-			cin.getline(thisSeed, 1024);
-
-			cout << "\nMessage: ";
-			cin.getline(message, 1024);
-
-			string ciphertext = RSAEncryptString(pubFilename, thisSeed, message);
-			cout << "\nCiphertext: " << ciphertext << endl;
-
-			string decrypted = RSADecryptString(privFilename, ciphertext.c_str());
-			cout << "\nDecrypted: " << decrypted << endl;
-		}
-		
-		else if (command == "m")
-			DigestFile(argv[2]);
-		
-		else if (command == "t")
-		{
-			EncryptDecryptMAC();
-		}
+		DigestFile(argv[2]);
+		EncryptDecryptMAC();
 
 		Base64Encode(plainTextFilePath, cipherTextFilePath);
 		Base64Decode(cipherTextFilePath, plainTextFilePath);
+
 		HexEncode(plainTextFilePath, cipherTextFilePath);
 		HexDecode(cipherTextFilePath, plainTextFilePath);
 
@@ -222,6 +175,31 @@ int main(int argc, char *argv[])
 		return -2;
 	}
 } // End main()
+
+void EncryptDecryptWithRsa()
+{
+	char privFilename[128], pubFilename[128];
+	char thisSeed[1024], message[1024];
+
+	cout << "Private key file: ";
+	cin >> privFilename;
+
+	cout << "\nPublic key file: ";
+	cin >> pubFilename;
+
+	cout << "\nRandom Seed: ";
+	ws(cin);
+	cin.getline(thisSeed, 1024);
+
+	cout << "\nMessage: ";
+	cin.getline(message, 1024);
+
+	string ciphertext = RSAEncryptString(pubFilename, thisSeed, message);
+	cout << "\nCiphertext: " << ciphertext << endl;
+
+	string decrypted = RSADecryptString(privFilename, ciphertext.c_str());
+	cout << "\nDecrypted: " << decrypted << endl;
+}
 
 void EncryptDecryptMAC()
 {
