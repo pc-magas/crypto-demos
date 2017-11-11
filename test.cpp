@@ -37,6 +37,16 @@
 //naim's code
 #include <cstdio>
 
+
+char *plainTextFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt";
+char *cipherTextFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt";
+char *publicKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\publicKey.txt";
+char *privateKeyFilePath = "C:\\Users\\nagabe\\Desktop\\Xenakis\\privateKey.txt";
+char *message = "message";
+char *seed = "seed";
+
+
+
 #ifdef CRYPTOPP_WIN32_AVAILABLE
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -100,6 +110,8 @@ void HexDecode(const char *infile, const char *outfile);
 
 void FIPS140_SampleApplication();
 void FIPS140_GenerateRandomFiles();
+
+void EncryptDecryptMAC();
 
 bool Validate(int, bool, const char *);
 void PrintSeedAndThreads(const std::string& seed);
@@ -182,126 +194,19 @@ int main(int argc, char *argv[])
 			string decrypted = RSADecryptString(privFilename, ciphertext.c_str());
 			cout << "\nDecrypted: " << decrypted << endl;
 		}
-		else if (command == "mt")
-		{
-			MaurerRandomnessTest mt;
-			FileStore fs(argv[2]);
-			fs.TransferAllTo(mt);
-			cout << "Maurer Test Value: " << mt.GetTestValue() << endl;
-		}
-		else if (command == "mac_dll")
-		{
-			std::string fname(argv[2] ? argv[2] : "");
-
-			// sanity check on file size
-			std::fstream dllFile(fname.c_str(), ios::in | ios::out | ios::binary);
-			if (!dllFile.good())
-			{
-				cerr << "Failed to open file \"" << fname << "\"\n";
-				return 1;
-			}
-
-			std::ifstream::pos_type fileEnd = dllFile.seekg(0, std::ios_base::end).tellg();
-			if (fileEnd > 20 * 1000 * 1000)
-			{
-				cerr << "Input file " << fname << " is too large";
-				cerr << "(size is " << fileEnd << ").\n";
-				return 1;
-			}
-
-			// read file into memory
-			unsigned int fileSize = (unsigned int)fileEnd;
-			SecByteBlock buf(fileSize);
-			dllFile.seekg(0, std::ios_base::beg);
-			dllFile.read((char *)buf.begin(), fileSize);
-
-			// find positions of relevant sections in the file, based on version 8 of documentation from http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
-			word32 coffPos = *(word16 *)(void *)(buf + 0x3c);
-			word32 optionalHeaderPos = coffPos + 24;
-			word16 optionalHeaderMagic = *(word16 *)(void *)(buf + optionalHeaderPos);
-			if (optionalHeaderMagic != 0x10b && optionalHeaderMagic != 0x20b)
-			{
-				cerr << "Target file is not a PE32 or PE32+ image.\n";
-				return 3;
-			}
-			word32 checksumPos = optionalHeaderPos + 64;
-			word32 certificateTableDirectoryPos = optionalHeaderPos + (optionalHeaderMagic == 0x10b ? 128 : 144);
-			word32 certificateTablePos = *(word32 *)(void *)(buf + certificateTableDirectoryPos);
-			word32 certificateTableSize = *(word32 *)(void *)(buf + certificateTableDirectoryPos + 4);
-			if (certificateTableSize != 0)
-				cerr << "Warning: certificate table (IMAGE_DIRECTORY_ENTRY_SECURITY) of target image is not empty.\n";
-
-			// find where to place computed MAC
-			byte mac[] = CRYPTOPP_DUMMY_DLL_MAC;
-			byte *found = std::search(buf.begin(), buf.end(), mac + 0, mac + sizeof(mac));
-			if (found == buf.end())
-			{
-				cerr << "MAC placeholder not found. The MAC may already be placed.\n";
-				return 2;
-			}
-			word32 macPos = (unsigned int)(found - buf.begin());
-
-			// compute MAC
-			member_ptr<MessageAuthenticationCode> pMac(NewIntegrityCheckingMAC());
-			CRYPTOPP_ASSERT(pMac->DigestSize() == sizeof(mac));
-			MeterFilter f(new HashFilter(*pMac, new ArraySink(mac, sizeof(mac))));
-			f.AddRangeToSkip(0, checksumPos, 4);
-			f.AddRangeToSkip(0, certificateTableDirectoryPos, 8);
-			f.AddRangeToSkip(0, macPos, sizeof(mac));
-			f.AddRangeToSkip(0, certificateTablePos, certificateTableSize);
-			f.PutMessageEnd(buf.begin(), buf.size());
-
-			// Encode MAC
-			string hexMac;
-			HexEncoder encoder;
-			encoder.Put(mac, sizeof(mac)), encoder.MessageEnd();
-			hexMac.resize(static_cast<size_t>(encoder.MaxRetrievable()));
-			encoder.Get(reinterpret_cast<byte*>(&hexMac[0]), hexMac.size());
-
-			// Report MAC and location
-			std::cout << "Placing MAC " << hexMac << " in " << fname << " at file offset " << macPos;
-			std::cout << " (0x" << std::hex << macPos << std::dec << ").\n";
-
-			// place MAC
-			dllFile.seekg(macPos, std::ios_base::beg);
-			dllFile.write((char *)mac, sizeof(mac));
-		}
+		
 		else if (command == "m")
 			DigestFile(argv[2]);
-		else if (command == "tv")
-		{
-			// TestDataFile() adds CRYPTOPP_DATA_DIR as required
-			std::string fname = (argv[2] ? argv[2] : "all");
-			if (fname.find(".txt") == std::string::npos)
-				fname = "TestVectors/" + fname + ".txt";
-
-			PrintSeedAndThreads(seed);
-			return !RunTestDataFile(fname.c_str());
-		}
+		
 		else if (command == "t")
 		{
-			// VC60 workaround: use char array instead of std::string to workaround MSVC's getline bug
-			char passPhrase[MAX_PHRASE_LENGTH], plaintext[1024];
-
-			cout << "Passphrase: ";
-			cin.getline(passPhrase, MAX_PHRASE_LENGTH);
-
-			cout << "\nPlaintext: ";
-			cin.getline(plaintext, 1024);
-
-			string ciphertext = EncryptString(plaintext, passPhrase);
-			cout << "\nCiphertext: " << ciphertext << endl;
-
-			string decrypted = DecryptString(ciphertext.c_str(), passPhrase);
-			cout << "\nDecrypted: " << decrypted << endl;
-
-			return 0;
+			EncryptDecryptMAC();
 		}
 
-		Base64Encode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt", "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt");
-		Base64Decode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt", "C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt");
-		HexEncode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt","C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt");
-		HexDecode("C:\\Users\\nagabe\\Desktop\\Xenakis\\new 2.txt","C:\\Users\\nagabe\\Desktop\\Xenakis\\new 1.txt");
+		Base64Encode(plainTextFilePath, cipherTextFilePath);
+		Base64Decode(cipherTextFilePath, plainTextFilePath);
+		HexEncode(plainTextFilePath, cipherTextFilePath);
+		HexDecode(cipherTextFilePath, plainTextFilePath);
 
 		std::getchar();
 		return 0;
@@ -317,6 +222,24 @@ int main(int argc, char *argv[])
 		return -2;
 	}
 } // End main()
+
+void EncryptDecryptMAC()
+{
+	// VC60 workaround: use char array instead of std::string to workaround MSVC's getline bug
+	char passPhrase[MAX_PHRASE_LENGTH], plaintext[1024];
+
+	cout << "Passphrase: ";
+	cin.getline(passPhrase, MAX_PHRASE_LENGTH);
+
+	cout << "\nPlaintext: ";
+	cin.getline(plaintext, 1024);
+
+	string ciphertext = EncryptString(plaintext, passPhrase);
+	cout << "\nCiphertext: " << ciphertext << endl;
+
+	string decrypted = DecryptString(ciphertext.c_str(), passPhrase);
+	cout << "\nDecrypted: " << decrypted << endl;
+}
 
 void FIPS140_GenerateRandomFiles()
 {
@@ -379,7 +302,7 @@ void PrintSeedAndThreads(const std::string& seed)
 
 	std::cout << "Using " << tc << " OMP " << (tc == 1 ? "thread" : "threads") << std::endl;
 #endif
-	}
+}
 
 SecByteBlock HexDecodeString(const char *hex)
 {
